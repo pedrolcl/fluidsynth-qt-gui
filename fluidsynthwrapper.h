@@ -30,19 +30,16 @@ class FluidSynthWrapper : public QObject
     int m_pipefds[2]{FDNULL, FDNULL};
     QSocketNotifier *m_notifier{nullptr};
 
+    void deinit();
+
+public:
+    explicit FluidSynthWrapper(QObject *parent = nullptr);
+    ~FluidSynthWrapper() override;
+
     void init(const QString &audioDriver,
               const QString &midiDriver,
               const QString &configFile,
               const QStringList &args);
-    void deinit();
-
-public:
-    explicit FluidSynthWrapper(const QString &audioDriver,
-                               const QString &midiDriver,
-                               const QString &configFile,
-                               const QStringList &args,
-                               QObject *parent = nullptr);
-    ~FluidSynthWrapper() override;
 
     QByteArray prompt() const;
 
@@ -51,6 +48,8 @@ public slots:
     void notifierActivated(QSocketDescriptor d, QSocketNotifier::Type t);
 
 signals:
+    void initialized();
+    void diagnostics(int level, const QByteArray message);
     void dataRead(const QByteArray &data, const int res);
 };
 

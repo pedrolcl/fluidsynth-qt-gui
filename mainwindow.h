@@ -28,7 +28,9 @@ public:
 
 public slots:
     void consoleOutput(const QByteArray &data, const int res = 0);
+    void diagnosticsOutput(int level, const QByteArray message);
     void consoleInput();
+    void startInput();
 };
 
 #endif // MAINWINDOW_H

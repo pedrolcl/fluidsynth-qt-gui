@@ -4,15 +4,27 @@
 #include "fluidsynthwrapper.h"
 #include <QDebug>
 #include <QFileInfo>
+#include <QTimer>
 #include <fcntl.h>
 #include <stdio.h>
 #include <unistd.h>
+
+static void FluidSynthWrapper_log_function(int level, const char *message, void *data)
+{
+    FluidSynthWrapper *classInstance = static_cast<FluidSynthWrapper *>(data);
+    emit classInstance->diagnostics(level, QByteArray(message));
+}
 
 void FluidSynthWrapper::init(const QString &audioDriver,
                              const QString &midiDriver,
                              const QString &configFile,
                              const QStringList &args)
 {
+    fluid_set_log_function(fluid_log_level::FLUID_DBG, &FluidSynthWrapper_log_function, this);
+    fluid_set_log_function(fluid_log_level::FLUID_ERR, &FluidSynthWrapper_log_function, this);
+    fluid_set_log_function(fluid_log_level::FLUID_WARN, &FluidSynthWrapper_log_function, this);
+    fluid_set_log_function(fluid_log_level::FLUID_INFO, &FluidSynthWrapper_log_function, this);
+
     m_settings = new_fluid_settings();
     fluid_settings_setint(m_settings, "midi.autoconnect", 1);
     fluid_settings_setstr(m_settings, "shell.prompt", "> ");
@@ -158,6 +170,8 @@ void FluidSynthWrapper::init(const QString &audioDriver,
         qWarning() << "Failed to create the audio driver. Giving up.";
         return;
     }
+
+    QTimer::singleShot(100, this, &FluidSynthWrapper::initialized);
 }
 
 void FluidSynthWrapper::deinit()
@@ -180,14 +194,9 @@ void FluidSynthWrapper::deinit()
     delete_fluid_settings(m_settings);
 }
 
-FluidSynthWrapper::FluidSynthWrapper(const QString &audioDriver,
-                                     const QString &midiDriver,
-                                     const QString &configFile,
-                                     const QStringList &args,
-                                     QObject *parent)
+FluidSynthWrapper::FluidSynthWrapper(QObject *parent)
     : QObject{parent}
 {
-    init(audioDriver, midiDriver, configFile, args);
     if (::pipe2(m_pipefds, O_NONBLOCK) == 0) {
         m_notifier = new QSocketNotifier(m_pipefds[FDREAD], QSocketNotifier::Read, this);
         connect(m_notifier,
@@ -210,8 +219,9 @@ QByteArray FluidSynthWrapper::prompt() const
         char *s;
         int res = fluid_settings_dupstr(m_settings, "shell.prompt", &s);
         if (res == FLUID_OK) {
-            return QByteArray(s);
+            QByteArray p(s);
             fluid_free(s);
+            return p;
         }
     }
     return "> ";
@@ -229,8 +239,8 @@ void FluidSynthWrapper::notifierActivated(QSocketDescriptor d, QSocketNotifier::
     QByteArray buffer;
     buffer.reserve(4096);
     qsizetype readBytes = ::read(m_pipefds[FDREAD], buffer.data(), buffer.capacity());
-    buffer.resize(readBytes);
-    if (!buffer.isEmpty()) {
+    if (readBytes > 0) {
+        buffer.resize(readBytes);
         emit dataRead(buffer, m_cmdresult);
     }
 }
