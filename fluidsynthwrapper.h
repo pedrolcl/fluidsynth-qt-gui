@@ -6,7 +6,28 @@
 
 #include <QByteArray>
 #include <QObject>
-#include <QSocketNotifier>
+
+#ifdef Q_OS_WINDOWS
+#include <io.h>
+#include <namedpipeapi.h>
+#include <windows.h>
+#define PipeRead(fd, ptr, size) _read(fd, ptr, size)
+#define PipeWrite(fd, str, size) _write(fd, str, size)
+#define PipeNew(fds) _pipe(fds, 4096, _O_BINARY | _O_NOINHERIT)
+#define PipeClose(fd) _close(fd)
+#define PipeNonBlock(fd) \
+    DWORD lpMode = PIPE_READMODE_BYTE | PIPE_NOWAIT; \
+    auto hfdPipe = reinterpret_cast<HANDLE>(_get_osfhandle(fd)); \
+    SetNamedPipeHandleState(hfdPipe, &lpMode, nullptr, nullptr)
+#else
+#include <unistd.h>
+#define PipeRead(fd, ptr, size) read(fd, ptr, size)
+#define PipeWrite(fd, str, size) write(fd, str, size)
+#define PipeNew(fds) pipe2(fds, O_NONBLOCK)
+#define PipeClose(fd) close(fd)
+#define PipeNonBlock(fd)
+#endif
+#include <fcntl.h>
 
 #include <fluidsynth.h>
 
@@ -28,7 +49,6 @@ class FluidSynthWrapper : public QObject
     int m_cmdresult{0};
 
     int m_pipefds[2]{FDNULL, FDNULL};
-    QSocketNotifier *m_notifier{nullptr};
 
     void deinit();
 
@@ -45,9 +65,10 @@ public:
 
 public slots:
     void command(const QByteArray &cmd);
-    void notifierActivated(QSocketDescriptor d, QSocketNotifier::Type t);
+    void readPipe();
 
 signals:
+    void readyRead();
     void initialized();
     void diagnostics(int level, const QByteArray message);
     void dataRead(const QByteArray &data, const int res);

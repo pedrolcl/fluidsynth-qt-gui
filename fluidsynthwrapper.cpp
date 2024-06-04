@@ -1,13 +1,11 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2024 Pedro López-Cabanillas <plcl@users.sf.net>
 
-#include "fluidsynthwrapper.h"
 #include <QDebug>
 #include <QFileInfo>
 #include <QTimer>
-#include <fcntl.h>
-#include <stdio.h>
-#include <unistd.h>
+
+#include "fluidsynthwrapper.h"
 
 static void FluidSynthWrapper_log_function(int level, const char *message, void *data)
 {
@@ -176,6 +174,11 @@ void FluidSynthWrapper::init(const QString &audioDriver,
 
 void FluidSynthWrapper::deinit()
 {
+    fluid_set_log_function(fluid_log_level::FLUID_DBG, fluid_default_log_function, nullptr);
+    fluid_set_log_function(fluid_log_level::FLUID_ERR, fluid_default_log_function, nullptr);
+    fluid_set_log_function(fluid_log_level::FLUID_WARN, fluid_default_log_function, nullptr);
+    fluid_set_log_function(fluid_log_level::FLUID_INFO, fluid_default_log_function, nullptr);
+    
     delete_fluid_cmd_handler(m_cmd_handler);
 
     if (m_player) {
@@ -197,19 +200,19 @@ void FluidSynthWrapper::deinit()
 FluidSynthWrapper::FluidSynthWrapper(QObject *parent)
     : QObject{parent}
 {
-    if (::pipe2(m_pipefds, O_NONBLOCK) == 0) {
-        m_notifier = new QSocketNotifier(m_pipefds[FDREAD], QSocketNotifier::Read, this);
-        connect(m_notifier,
-                &QSocketNotifier::activated,
-                this,
-                &FluidSynthWrapper::notifierActivated);
-    }
+    auto res = PipeNew(m_pipefds);
+    Q_ASSERT_X(res == 0, "FluidSynthWrapper", "Error creating the pipe");
+    PipeNonBlock(m_pipefds[FDREAD]);
+    connect(this,
+            &FluidSynthWrapper::readyRead,
+            this,
+            &FluidSynthWrapper::readPipe);
 }
 
 FluidSynthWrapper::~FluidSynthWrapper()
 {
-    ::close(m_pipefds[FDREAD]);
-    ::close(m_pipefds[FDWRITE]);
+    PipeClose(m_pipefds[FDREAD]);
+    PipeClose(m_pipefds[FDWRITE]);
     deinit();
 }
 
@@ -231,14 +234,15 @@ void FluidSynthWrapper::command(const QByteArray &cmd)
 {
     if (m_cmd_handler && !cmd.isEmpty() && cmd != "\n") {
         m_cmdresult = fluid_command(m_cmd_handler, cmd.data(), m_pipefds[FDWRITE]);
+        QTimer::singleShot(50, this, &FluidSynthWrapper::readyRead);
     }
 }
 
-void FluidSynthWrapper::notifierActivated(QSocketDescriptor d, QSocketNotifier::Type t)
+void FluidSynthWrapper::readPipe()
 {
     QByteArray buffer;
     buffer.reserve(4096);
-    qsizetype readBytes = ::read(m_pipefds[FDREAD], buffer.data(), buffer.capacity());
+    qsizetype readBytes = PipeRead(m_pipefds[FDREAD], buffer.data(), buffer.capacity());
     if (readBytes > 0) {
         buffer.resize(readBytes);
         emit dataRead(buffer, m_cmdresult);
