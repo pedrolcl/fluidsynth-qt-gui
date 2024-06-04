@@ -4,6 +4,8 @@
 #include <QDebug>
 #include <QMenu>
 #include <QMenuBar>
+#include <QFontDatabase>
+#include <QFont>
 
 #include "ConsoleWidget.h"
 #include "fluidcompleter.h"
@@ -21,7 +23,7 @@ MainWindow::MainWindow(const QString &audioDriver,
     m_completer = new FluidCompleter(this);
     m_console = new ConsoleWidget(this);
     m_console->setCompleter(m_completer);
-    m_console->setFont(QFont("Monospace"));
+    m_console->setFont(QFontDatabase::systemFont(QFontDatabase::FixedFont));
     connect(m_client, &FluidSynthWrapper::dataRead, this, &MainWindow::consoleOutput);
     connect(m_client, &FluidSynthWrapper::diagnostics, this, &MainWindow::diagnosticsOutput);
     connect(m_client, &FluidSynthWrapper::initialized, this, &MainWindow::startInput);

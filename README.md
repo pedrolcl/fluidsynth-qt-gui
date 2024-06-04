@@ -5,7 +5,8 @@ This is a basic GUI command shell implementation using Qt6 widgets for the Fluid
 
 Another similar alternative is [netcat-qt](https://github.com/pedrolcl/netcat-qt).
 
-![screenshot](screenshot.png)
+![screenshot](screenshot.png)  
+![win screenshot](screenshot-win.png)  
 
 ## License
 SPDX-License-Identifier: MIT  
