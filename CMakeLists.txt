@@ -14,11 +14,9 @@ find_package(FluidSynth REQUIRED)
 
 qt_standard_project_setup()
 
+add_subdirectory(consolewidget)
+
 qt_add_executable( ${PROJECT_NAME}
-    ConsoleIODevice.cpp
-    ConsoleIODevice.h
-    ConsoleWidget.cpp
-    ConsoleWidget.h
     fluidcompleter.cpp
     fluidcompleter.h
     fluidsynthwrapper.cpp
@@ -33,6 +31,7 @@ target_link_libraries( ${PROJECT_NAME} PRIVATE
     Qt::Gui
     Qt::Widgets
     FluidSynth::libfluidsynth
+    consolewidget-static
 )
 
 target_compile_definitions( ${PROJECT_NAME} PRIVATE

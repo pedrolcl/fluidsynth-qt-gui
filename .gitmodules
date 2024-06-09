@@ -1,0 +1,3 @@
+[submodule "consolewidget"]
+	path = consolewidget
+	url = git@github.com:pedrolcl/consolewidget.git
