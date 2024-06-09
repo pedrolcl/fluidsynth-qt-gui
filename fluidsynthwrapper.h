@@ -7,13 +7,14 @@
 #include <QByteArray>
 #include <QObject>
 
+#define BUFFER_SIZE 8192
 #ifdef Q_OS_WINDOWS
 #include <io.h>
 #include <namedpipeapi.h>
 #include <windows.h>
 #define PipeRead(fd, ptr, size) _read(fd, ptr, size)
 #define PipeWrite(fd, str, size) _write(fd, str, size)
-#define PipeNew(fds) _pipe(fds, 4096, _O_BINARY | _O_NOINHERIT)
+#define PipeNew(fds) _pipe(fds, BUFFER_SIZE, _O_BINARY | _O_NOINHERIT)
 #define PipeClose(fd) _close(fd)
 #define PipeNonBlock(fd) \
     DWORD lpMode = PIPE_READMODE_BYTE | PIPE_NOWAIT; \
@@ -51,6 +52,7 @@ class FluidSynthWrapper : public QObject
     int m_pipefds[2]{FDNULL, FDNULL};
 
     void deinit();
+    void createMidiPlayer();
 
 public:
     explicit FluidSynthWrapper(QObject *parent = nullptr);
@@ -66,6 +68,7 @@ public:
 public slots:
     void command(const QByteArray &cmd);
     void readPipe();
+    void loadMIDIFiles(const QStringList &fileNames);
 
 signals:
     void readyRead();

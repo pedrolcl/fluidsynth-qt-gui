@@ -31,6 +31,12 @@ public slots:
     void diagnosticsOutput(int level, const QByteArray message);
     void consoleInput();
     void startInput();
+    void fileDialog();
+    void processFiles(const QStringList &files);
+
+protected:
+    void dropEvent(QDropEvent *event) override;
+    void dragEnterEvent(QDragEnterEvent *event) override;
 };
 
 #endif // MAINWINDOW_H

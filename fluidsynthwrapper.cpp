@@ -29,7 +29,7 @@ void FluidSynthWrapper::init(const QString &audioDriver,
 
     QFileInfo fileInfo(configFile);
     QByteArray fileName_utf8;
-    fileName_utf8.reserve(4096);
+    fileName_utf8.reserve(BUFFER_SIZE);
     char *config_file = nullptr;
 
     if (!configFile.isEmpty() && fileInfo.exists()) {
@@ -55,8 +55,9 @@ void FluidSynthWrapper::init(const QString &audioDriver,
         m_cmd_handler = new_fluid_cmd_handler2(m_settings, nullptr, nullptr, nullptr);
         auto res = fluid_source(m_cmd_handler, config_file);
         if (res < 0) {
-            qWarning() << "Failed to execute command configuration file"
-                       << fileInfo.absoluteFilePath();
+            fluid_log(FLUID_WARN,
+                      "Failed to execute command configuration file %s",
+                      fileInfo.absoluteFilePath().toUtf8().data());
         }
         delete_fluid_cmd_handler(m_cmd_handler);
         m_cmd_handler = nullptr;
@@ -78,7 +79,7 @@ void FluidSynthWrapper::init(const QString &audioDriver,
 
     m_synth = new_fluid_synth(m_settings);
     if (m_synth == nullptr) {
-        qWarning() << "Failed to create the synthesizer";
+        fluid_log(FLUID_WARN, "Failed to create the synthesizer");
         return;
     }
 
@@ -89,11 +90,13 @@ void FluidSynthWrapper::init(const QString &audioDriver,
         }
         if (fluid_is_soundfont(fileName_utf8.data())) {
             if (fluid_synth_sfload(m_synth, fileName_utf8.data(), 1) == -1) {
-                qWarning() << "Failed to load the SoundFont" << fileName;
+                fluid_log(FLUID_WARN, "Failed to load the SoundFont %s", fileName.toUtf8().data());
             }
         } else {
-            qWarning() << "Parameter" << fileName
-                       << "is not a SoundFont or MIDI file or error occurred identifying it.";
+            fluid_log(
+                FLUID_WARN,
+                "Parameter %s is not a SoundFont or MIDI file or error occurred identifying it.",
+                fileName.toUtf8().data());
         }
     }
 
@@ -111,9 +114,10 @@ void FluidSynthWrapper::init(const QString &audioDriver,
 
     m_router = new_fluid_midi_router(m_settings, fluid_synth_handle_midi_event, (void *) m_synth);
     if (m_router == nullptr) {
-        qWarning() << "Failed to create the MIDI input router; no MIDI input\n"
-                      "will be available. You can access the synthesizer \n"
-                      "through the console.";
+        fluid_log(FLUID_WARN,
+                  "Failed to create the MIDI input router; no MIDI input\n"
+                  "will be available. You can access the synthesizer \n"
+                  "through the console.");
     }
 
     /* start the midi router and link it to the synth */
@@ -123,49 +127,39 @@ void FluidSynthWrapper::init(const QString &audioDriver,
                                               (void *) m_router);
 
         if (m_midi_driver == nullptr) {
-            qWarning() << "Failed to create the MIDI thread; no MIDI input\n"
-                          "will be available. You can access the synthesizer \n"
-                          "through the console.";
+            fluid_log(FLUID_WARN,
+                      "Failed to create the MIDI thread; no MIDI input\n"
+                      "will be available. You can access the synthesizer \n"
+                      "through the console.");
         }
     }
 
     /* create the player and add any midi files, if requested */
+    createMidiPlayer();
+    QStringList midiFiles;
     foreach (const auto fileName, args) {
-        const QByteArray file_utf8 = fileName.toUtf8();
-        const char *file = file_utf8.data();
-        if (fluid_is_midifile(file)) {
-            if (m_player == nullptr) {
-                m_player = new_fluid_player(m_synth);
-
-                if (m_player == nullptr) {
-                    qWarning() << "Failed to create the midifile player.\n"
-                                  "Continuing without a player.";
-                    break;
-                }
-
-                if (m_router != nullptr) {
-                    fluid_player_set_playback_callback(m_player,
-                                                       fluid_midi_router_handle_midi_event,
-                                                       m_router);
-                }
-            }
-            fluid_player_add(m_player, file);
+        QByteArray file = fileName.toUtf8();
+        if (fluid_is_midifile(file.data())) {
+            midiFiles.append(fileName);
         }
+    }
+    if (!midiFiles.isEmpty()) {
+        loadMIDIFiles(midiFiles);
     }
 
     m_cmd_handler = new_fluid_cmd_handler2(m_settings, m_synth, m_router, m_player);
     if (m_cmd_handler == nullptr) {
-        qWarning() << "Failed to create the command handler";
+        fluid_log(FLUID_WARN, "Failed to create the command handler");
         return;
     }
 
-    if (m_player != nullptr) {
-        fluid_player_play(m_player);
-    }
+    // if (m_player != nullptr) {
+    //     fluid_player_play(m_player);
+    // }
 
     m_audio_driver = new_fluid_audio_driver(m_settings, m_synth);
     if (m_audio_driver == nullptr) {
-        qWarning() << "Failed to create the audio driver. Giving up.";
+        fluid_log(FLUID_WARN, "Failed to create the audio driver. Giving up.");
         return;
     }
 
@@ -241,10 +235,45 @@ void FluidSynthWrapper::command(const QByteArray &cmd)
 void FluidSynthWrapper::readPipe()
 {
     QByteArray buffer;
-    buffer.reserve(4096);
+    buffer.reserve(BUFFER_SIZE);
     qsizetype readBytes = PipeRead(m_pipefds[FDREAD], buffer.data(), buffer.capacity());
+    qDebug() << Q_FUNC_INFO << readBytes;
     if (readBytes > 0) {
         buffer.resize(readBytes);
         emit dataRead(buffer, m_cmdresult);
+    }
+}
+
+void FluidSynthWrapper::createMidiPlayer()
+{
+    m_player = new_fluid_player(m_synth);
+    if (m_player == nullptr) {
+        fluid_log(FLUID_WARN,
+                  "Failed to create the midifile player.\n"
+                  "Continuing without a player.");
+    } else if (m_router != nullptr) {
+        fluid_player_set_playback_callback(m_player, fluid_midi_router_handle_midi_event, m_router);
+    }
+}
+
+void FluidSynthWrapper::loadMIDIFiles(const QStringList &fileNames)
+{
+    if (fluid_player_get_status(m_player) == FLUID_PLAYER_DONE) {
+        delete_fluid_player(m_player);
+        m_player = nullptr;
+    }
+    if (m_player == nullptr) {
+        createMidiPlayer();
+    }
+    foreach (const auto fileName, fileNames) {
+        QByteArray f = fileName.toUtf8();
+        if (m_player) {
+            if (fluid_player_add(m_player, f.data()) == FLUID_FAILED) {
+                fluid_log(FLUID_WARN, "file cannot be played: %s", f.data());
+            }
+        }
+    }
+    if (!fileNames.isEmpty()) {
+        fluid_player_play(m_player);
     }
 }
