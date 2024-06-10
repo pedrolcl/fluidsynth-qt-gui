@@ -1,14 +1,17 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2024 Pedro López-Cabanillas <plcl@users.sf.net>
 
+#include <QAction>
 #include <QDebug>
 #include <QDropEvent>
 #include <QFileDialog>
 #include <QFont>
 #include <QFontDatabase>
+#include <QIcon>
 #include <QMenu>
 #include <QMenuBar>
 #include <QMimeData>
+#include <QToolBar>
 
 #include "ConsoleWidget.h"
 #include "fluidcompleter.h"
@@ -31,11 +34,26 @@ MainWindow::MainWindow(const QString &audioDriver,
     connect(m_client, &FluidSynthWrapper::dataRead, this, &MainWindow::consoleOutput);
     connect(m_client, &FluidSynthWrapper::diagnostics, this, &MainWindow::diagnosticsOutput);
     connect(m_client, &FluidSynthWrapper::initialized, this, &MainWindow::startInput);
+    connect(m_client, &FluidSynthWrapper::midiPlayerActive, this, [=] {
+        enableCommandButtons(true);
+    });
     connect(m_console->device(), &QIODevice::readyRead, this, &MainWindow::consoleInput);
 
     QMenu *file = menuBar()->addMenu("&File");
     file->addAction("&Open", QKeySequence::Open, this, &MainWindow::fileDialog);
     file->addAction("E&xit", QKeySequence::Quit, this, &MainWindow::close);
+
+    m_bar = addToolBar("&commands");
+    m_startAction = m_bar->addAction(QIcon::fromTheme(QIcon::ThemeIcon::MediaSeekBackward), "Back");
+    connect(m_startAction, &QAction::triggered, this, [=] { m_client->command("player_start"); });
+    m_stopAction = m_bar->addAction(QIcon::fromTheme(QIcon::ThemeIcon::MediaPlaybackPause), "Pause");
+    connect(m_stopAction, &QAction::triggered, this, [=] { m_client->command("player_stop"); });
+    m_contAction = m_bar->addAction(QIcon::fromTheme(QIcon::ThemeIcon::MediaPlaybackStart), "Cont");
+    connect(m_contAction, &QAction::triggered, this, [=] { m_client->command("player_cont"); });
+    m_nextAction = m_bar->addAction(QIcon::fromTheme(QIcon::ThemeIcon::MediaSkipForward), "Next");
+    connect(m_nextAction, &QAction::triggered, this, [=] { m_client->command("player_next"); });
+    enableCommandButtons(false);
+
     setWindowTitle("FluidSynth Commmand Window");
     setCentralWidget(m_console);
     setAcceptDrops(true);
@@ -97,6 +115,13 @@ void MainWindow::fileDialog()
                                                       "MIDI Songs (*.mid *.midi *.MID)");
     if (!files.isEmpty()) {
         processFiles(files);
+    }
+}
+
+void MainWindow::enableCommandButtons(bool enable)
+{
+    foreach (QAction *a, m_bar->actions()) {
+        a->setEnabled(enable);
     }
 }
 

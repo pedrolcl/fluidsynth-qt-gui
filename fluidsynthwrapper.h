@@ -73,6 +73,7 @@ public slots:
 signals:
     void readyRead();
     void initialized();
+    void midiPlayerActive();
     void diagnostics(int level, const QByteArray message);
     void dataRead(const QByteArray &data, const int res);
 };

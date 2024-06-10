@@ -10,6 +10,8 @@
 class ConsoleWidget;
 class FluidCompleter;
 class FluidSynthWrapper;
+class QAction;
+class QToolBar;
 
 class MainWindow : public QMainWindow
 {
@@ -18,6 +20,12 @@ class MainWindow : public QMainWindow
     ConsoleWidget *m_console{nullptr};
     FluidCompleter *m_completer{nullptr};
     FluidSynthWrapper *m_client{nullptr};
+
+    QAction *m_stopAction{nullptr};
+    QAction *m_contAction{nullptr};
+    QAction *m_nextAction{nullptr};
+    QAction *m_startAction{nullptr};
+    QToolBar *m_bar{nullptr};
 
 public:
     explicit MainWindow(const QString &audioDriver,
@@ -32,6 +40,7 @@ public slots:
     void consoleInput();
     void startInput();
     void fileDialog();
+    void enableCommandButtons(bool enable);
     void processFiles(const QStringList &files);
 
 protected:

@@ -153,10 +153,6 @@ void FluidSynthWrapper::init(const QString &audioDriver,
         return;
     }
 
-    // if (m_player != nullptr) {
-    //     fluid_player_play(m_player);
-    // }
-
     m_audio_driver = new_fluid_audio_driver(m_settings, m_synth);
     if (m_audio_driver == nullptr) {
         fluid_log(FLUID_WARN, "Failed to create the audio driver. Giving up.");
@@ -237,7 +233,7 @@ void FluidSynthWrapper::readPipe()
     QByteArray buffer;
     buffer.reserve(BUFFER_SIZE);
     qsizetype readBytes = PipeRead(m_pipefds[FDREAD], buffer.data(), buffer.capacity());
-    qDebug() << Q_FUNC_INFO << readBytes;
+    //qDebug() << Q_FUNC_INFO << readBytes;
     if (readBytes > 0) {
         buffer.resize(readBytes);
         emit dataRead(buffer, m_cmdresult);
@@ -275,5 +271,6 @@ void FluidSynthWrapper::loadMIDIFiles(const QStringList &fileNames)
     }
     if (!fileNames.isEmpty()) {
         fluid_player_play(m_player);
+        emit midiPlayerActive();
     }
 }
