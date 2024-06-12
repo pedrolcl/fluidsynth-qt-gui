@@ -7,7 +7,7 @@
 #include <QByteArray>
 #include <QObject>
 
-#define BUFFER_SIZE 8192
+#define BUFFER_SIZE 16384
 #ifdef Q_OS_WINDOWS
 #include <io.h>
 #include <namedpipeapi.h>
@@ -32,29 +32,13 @@
 
 #include <fluidsynth.h>
 
-#define FDNULL -1
-#define FDREAD 0
-#define FDWRITE 1
-
 class FluidSynthWrapper : public QObject
 {
     Q_OBJECT
 
-    fluid_settings_t *m_settings{nullptr};
-    fluid_player_t *m_player{nullptr};
-    fluid_midi_router_t *m_router{nullptr};
-    fluid_midi_driver_t *m_midi_driver{nullptr};
-    fluid_audio_driver_t *m_audio_driver{nullptr};
-    fluid_synth_t *m_synth{nullptr};
-    fluid_cmd_handler_t *m_cmd_handler{nullptr};
-    int m_cmdresult{0};
-
-    int m_pipefds[2]{FDNULL, FDNULL};
-
-    void deinit();
-    void createMidiPlayer();
-
 public:
+    enum PipeDescriptors { FDNULL = -1, FDREAD = 0, FDWRITE = 1 };
+
     explicit FluidSynthWrapper(QObject *parent = nullptr);
     ~FluidSynthWrapper() override;
 
@@ -76,6 +60,21 @@ signals:
     void midiPlayerActive();
     void diagnostics(int level, const QByteArray message);
     void dataRead(const QByteArray &data, const int res);
+
+private:
+    void deinit();
+    void createMidiPlayer();
+    void destroyMidiPlayer();
+
+    fluid_settings_t *m_settings{nullptr};
+    fluid_player_t *m_player{nullptr};
+    fluid_midi_router_t *m_router{nullptr};
+    fluid_midi_driver_t *m_midi_driver{nullptr};
+    fluid_audio_driver_t *m_audio_driver{nullptr};
+    fluid_synth_t *m_synth{nullptr};
+    fluid_cmd_handler_t *m_cmd_handler{nullptr};
+    int m_cmdresult{0};
+    int m_pipefds[2]{FDNULL, FDNULL};
 };
 
 #endif // FLUIDSYNTHWRAPPER_H

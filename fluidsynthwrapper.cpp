@@ -171,16 +171,8 @@ void FluidSynthWrapper::deinit()
     
     delete_fluid_cmd_handler(m_cmd_handler);
 
-    if (m_player) {
-        fluid_player_stop(m_player);
-        if (m_audio_driver != nullptr
-            || !fluid_settings_str_equal(m_settings, "player.timing-source", "sample")) {
-            /* if no audio driver and sample timers are used, nothing makes the player advance */
-            fluid_player_join(m_player);
-        }
-    }
+    destroyMidiPlayer();
     delete_fluid_audio_driver(m_audio_driver);
-    delete_fluid_player(m_player);
     delete_fluid_midi_driver(m_midi_driver);
     delete_fluid_midi_router(m_router);
     delete_fluid_synth(m_synth);
@@ -252,12 +244,21 @@ void FluidSynthWrapper::createMidiPlayer()
     }
 }
 
-void FluidSynthWrapper::loadMIDIFiles(const QStringList &fileNames)
+void FluidSynthWrapper::destroyMidiPlayer()
 {
+    if (m_player != nullptr) {
+        fluid_player_stop(m_player);
+        fluid_player_join(m_player);
+    }
     if (fluid_player_get_status(m_player) == FLUID_PLAYER_DONE) {
         delete_fluid_player(m_player);
         m_player = nullptr;
     }
+}
+
+void FluidSynthWrapper::loadMIDIFiles(const QStringList &fileNames)
+{
+    destroyMidiPlayer();
     if (m_player == nullptr) {
         createMidiPlayer();
     }
