@@ -54,7 +54,7 @@ MainWindow::MainWindow(const QString &audioDriver,
     connect(m_nextAction, &QAction::triggered, this, [=] { m_client->command("player_next"); });
     enableCommandButtons(false);
 
-    setWindowTitle("FluidSynth Commmand Window");
+    setWindowTitle("FluidSynth Command Window");
     setCentralWidget(m_console);
     setAcceptDrops(true);
 

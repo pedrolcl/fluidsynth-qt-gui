@@ -11,6 +11,7 @@ int main(int argc, char *argv[])
 {
     QCoreApplication::setApplicationName("TestFluidSynthCLI");
     QCoreApplication::setApplicationVersion(QT_STRINGIFY(VERSION));
+    QApplication::setStyle(QLatin1String("Fusion"));
     QApplication app(argc, argv);
 
     QCommandLineParser parser;

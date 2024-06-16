@@ -18,7 +18,7 @@ void FluidSynthWrapper::init(const QString &audioDriver,
                              const QString &configFile,
                              const QStringList &args)
 {
-    fluid_set_log_function(fluid_log_level::FLUID_DBG, &FluidSynthWrapper_log_function, this);
+    //fluid_set_log_function(fluid_log_level::FLUID_DBG, &FluidSynthWrapper_log_function, this);
     fluid_set_log_function(fluid_log_level::FLUID_ERR, &FluidSynthWrapper_log_function, this);
     fluid_set_log_function(fluid_log_level::FLUID_WARN, &FluidSynthWrapper_log_function, this);
     fluid_set_log_function(fluid_log_level::FLUID_INFO, &FluidSynthWrapper_log_function, this);
@@ -158,13 +158,15 @@ void FluidSynthWrapper::init(const QString &audioDriver,
         fluid_log(FLUID_WARN, "Failed to create the audio driver. Giving up.");
         return;
     }
-
+    
+    fluid_log(FLUID_INFO, "FluidSynth runtime version %s", fluid_version_str());
+    
     QTimer::singleShot(100, this, &FluidSynthWrapper::initialized);
 }
 
 void FluidSynthWrapper::deinit()
 {
-    fluid_set_log_function(fluid_log_level::FLUID_DBG, fluid_default_log_function, nullptr);
+    //fluid_set_log_function(fluid_log_level::FLUID_DBG, fluid_default_log_function, nullptr);
     fluid_set_log_function(fluid_log_level::FLUID_ERR, fluid_default_log_function, nullptr);
     fluid_set_log_function(fluid_log_level::FLUID_WARN, fluid_default_log_function, nullptr);
     fluid_set_log_function(fluid_log_level::FLUID_INFO, fluid_default_log_function, nullptr);

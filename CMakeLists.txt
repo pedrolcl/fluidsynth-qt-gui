@@ -16,7 +16,7 @@ qt_standard_project_setup()
 
 add_subdirectory(consolewidget)
 
-qt_add_executable( ${PROJECT_NAME}
+qt_add_executable( ${PROJECT_NAME} WIN32
     fluidcompleter.cpp
     fluidcompleter.h
     fluidsynthwrapper.cpp
